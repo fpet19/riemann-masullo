@@ -34,8 +34,8 @@ range of `U`.
 
 **Not formalized.** The cutoffs are the sharp cutoff to norm at most `L` and no lower cutoff.
 The paper does not specify its cutoffs. The action of the test is written in the norm
-coordinate, in which the quotient measure is a constant multiple of `dt / t`. The comparison
-with the sharp orbital mass of `sLocalTrace_asymptotic_of_sharp_comparison` is not made. Order
+coordinate, in which the quotient measure is a constant multiple of `dt / t`. The limit is
+compared with the principal value of the project in `Sec4_RealPWLevelPrincipalValue`. Order
 zero and the field `ℚ` with no finite place only.
 -/
 
