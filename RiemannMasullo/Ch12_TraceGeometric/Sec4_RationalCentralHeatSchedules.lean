@@ -128,4 +128,78 @@ theorem exists_quotientBruhatLevel_haarDiagonal_heatSchedules_sub_tendsto_nine :
     · push_cast
       ring_nf
 
+/-- A quadratic radial profile vanishes at norm one and has nonzero log curvature there. -/
+private def vanishingWeight (r : ℝ) : ℝ := (r - 1)^2 * cutoff r
+
+private theorem vanishingWeight_smooth : ContDiff ℝ (∞) vanishingWeight :=
+  ((contDiff_id.sub contDiff_const).pow 2).mul cutoff.contDiff
+
+private theorem vanishingWeight_supported (r : ℝ)
+    (hr : r ∉ Icc (centralDilation (1/2)) (centralDilation (-(1/2)))) :
+    vanishingWeight r = 0 := by
+  have hdist : cutoff.rOut ≤ dist r 1 := by
+    change 1/4 ≤ dist r 1
+    by_contra! h
+    rw [Real.dist_eq, abs_lt] at h
+    apply hr
+    norm_num [centralDilation]
+    constructor <;> linarith [h.1, h.2]
+  simp [vanishingWeight, cutoff.zero_of_le_dist hdist]
+
+private theorem vanishingWeight_jet :
+    vanishingWeight 1 = 0 ∧ deriv vanishingWeight 1 + deriv (deriv vanishingWeight) 1 = 2 := by
+  have he : vanishingWeight =ᶠ[𝓝 (1 : ℝ)] fun r : ℝ ↦ (r - 1)^2 := by
+    filter_upwards [cutoff.eventuallyEq_one] with r hr
+    change cutoff r = 1 at hr
+    simp [vanishingWeight, hr]
+  have hD : deriv (fun r : ℝ ↦ (r - 1)^2) = fun r ↦ 2 * (r - 1) := by
+    ext r
+    exact (((hasDerivAt_id r).sub_const 1).pow 2).deriv.trans (by ring)
+  have hDD : deriv (fun r : ℝ ↦ 2 * (r - 1)) 1 = 2 := by
+    simpa using (((hasDerivAt_id (1 : ℝ)).sub_const 1).const_mul 2).deriv
+  rw [he.eq_of_nhds, he.deriv_eq, he.deriv.deriv_eq, hD, hDD]
+  norm_num
+
+/-- Paper: §12.3, p. 514, and Theorem 12.5.1.1, pp. 519–520.
+Deviation: This compares two heat schedules for the actual rational order-zero
+quotient compression with no finite places. Even when the compact Bruhat test
+vanishes on every norm-one class, the uncentered integrated Haar diagonals on
+identical windows can have unequal limits. -/
+theorem exists_quotientBruhatLevel_haarDiagonal_heatSchedules_sub_tendsto_two_of_normOne_zero :
+    ∃ ψ : BruhatCompactSupport J, (∀ q : J, r(q) = 1 → ψ.val q = 0) ∧
+      Tendsto (fun n : ℕ ↦
+        let T := quotientBruhatLevelCompression 1 ((n : ℝ) + 1)⁻¹ (Real.exp ((n : ℝ) + 1)) ψ
+        (∫ q : J, quotientLogHaarHeatKernel (2 / ((n : ℝ≥0) + 1)) T q q ∂μ) -
+        (∫ q : J, quotientLogHaarHeatKernel (1 / ((n : ℝ≥0) + 1)) T q q ∂μ))
+        atTop (𝓝 (2 : ℂ)) := by
+  obtain ⟨ψ, hψ, hlim⟩ := exists_bruhatTest_haarDiagonal_centralFinitePart
+    (δ := (1/2 : ℝ)) (by norm_num) (by norm_num) vanishingWeight_smooth
+      vanishingWeight_supported
+  have hf : Tendsto floorRadius atTop (𝓝 0) := tendsto_inv_atTop_zero.comp natScale
+  have hL : Tendsto outerRadius atTop atTop := Real.tendsto_exp_atTop.comp natScale
+  have hbox (n : ℕ) : 0 ≤ floorRadius n ∧ floorRadius n ≤ outerRadius n := by
+    have hn : 1 ≤ (n : ℝ) + 1 := by linarith [Nat.cast_nonneg (α := ℝ) n]
+    have hf1 : floorRadius n ≤ 1 := (inv_le_one₀ (by positivity : 0 < (n : ℝ) + 1)).mpr hn
+    exact ⟨by dsimp [floorRadius]; positivity, hf1.trans (Real.one_le_exp (by positivity))⟩
+  have h (k : ℝ≥0) (hk : 0 < k) :
+      Tendsto (diagonal ψ k) atTop
+        (𝓝 ((actualCentralTraceFinitePart (1/2) vanishingWeight + (k : ℝ)*2 : ℝ) : ℂ)) := by
+    have hs (n : ℕ) : (heatTime k n : ℝ) * Real.log (1 * outerRadius n) = k := by
+      simp only [heatTime, NNReal.coe_div, NNReal.coe_add, NNReal.coe_natCast, NNReal.coe_one,
+        one_mul, outerRadius, Real.log_exp]
+      exact div_mul_cancel₀ _ (by positivity)
+    have hl := hlim (l := atTop) (B := fun _ : ℕ ↦ (1 : ℝ)) (L := outerRadius)
+      (h := floorRadius) (τ := heatTime k) (κ := (k : ℝ)) (fun _ ↦ zero_lt_one)
+      (fun n ↦ Real.exp_pos _) (.of_forall hbox) (by simpa using hL)
+      (by simpa using hf) (heat_time_zero k) (by simp only [hs]; exact tendsto_const_nhds)
+      (.of_forall fun n ↦ div_pos hk (by positivity))
+    simpa only [diagonal, vanishingWeight_jet.1, vanishingWeight_jet.2,
+      Complex.ofReal_zero, zero_mul, sub_zero] using hl
+  refine ⟨ψ, fun q hq ↦ ?_, ?_⟩
+  · rw [hψ q, hq, vanishingWeight_jet.1, Complex.ofReal_zero]
+  · change Tendsto (fun n ↦ diagonal ψ 2 n - diagonal ψ 1 n) atTop (𝓝 (2 : ℂ))
+    convert (h 2 (by norm_num)).sub (h 1 (by norm_num)) using 1
+    push_cast
+    ring_nf
+
 end RiemannMasullo.AnnularBand
