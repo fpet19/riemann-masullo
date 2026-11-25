@@ -39,8 +39,8 @@ composites, and the trace is computed for the literal composite.
 The identification of `realPWLevel Y` with the level `sLocalInvariantPWSobolev` of the project
 over `ℚ` with no finite place is proved in `Sec4_RealPWLevelBridge`.
 
-**Not formalized.** The average of the operators against `φ` is not formed, only the average of
-their traces.
+The average of the operators against `φ` is formed in `Sec4_RealPWLevelAverage`, where the
+trace of its compression is shown to be the average of the traces computed here.
 -/
 
 open MeasureTheory Real Set Filter Topology

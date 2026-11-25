@@ -22,7 +22,8 @@ the level `sLocalInvariantPWSobolev` of `Ch11_ShellStructure/Sec2b` is carried o
 * `exists_linearIsometry_map_sLocalInvariantPWSobolev_rat`: there are a linear isometry `U` from
   the weighted space `L²` of the quotient `(SAdeleRing ℚ ∅)ˣ / {±1}` into `L²(ℝ)`, a map `κ`
   from `ℝ` to the quotient with `κ x` of norm `|x|`, and a constant `c > 0`, such that
-  `(U F) (x) = c |x|^(-1/2) F (κ x)` for almost every `x`, and the image under `U` of
+  `(U F) (x) = c |x|^(-1/2) F (κ x)` for almost every `x`, the map `κ` pulls null sets of the
+  quotient back to null sets of the line, and the image under `U` of
   `sLocalInvariantPWSobolev` with parameter `Y` is `realPWLevel Y`.
 
 The steps of the proof.
@@ -44,11 +45,11 @@ The lemmas on units, norms and theta functions over `ℚ` with `S = ∅` are tho
 `Ch11_ShellStructure/Sec2b_Printed`, which are private there. The lemma that removes a density
 from a weighted `L²` space is the private one of `Ch10_TraceSpectral/Sec4a`.
 
-**Not formalized.** The traces are not transported: the statement is about the level as a
-subspace. Under `U` the translation by a class of norm `t` becomes the dilation
-`f ↦ t^(-1/2) f (· / t)` and the cutoff to classes of norm at most `L` becomes the cutoff to
-`[-L, L]`. Both follow from the formula for `U` and are not stated here. Order zero and the
-field `ℚ` with no finite place only.
+The operators and the traces are carried across in `Sec4_RealPWLevelTransport`. Under `U` the
+translation by a class of norm `t` becomes the dilation `f ↦ t^(-1/2) f (· / t)` and the cutoff
+to classes of norm at most `L` becomes the cutoff to `[-L, L]`.
+
+**Not formalized.** Order zero and the field `ℚ` with no finite place only.
 -/
 
 @[expose] public noncomputable section
@@ -235,7 +236,7 @@ private theorem ratEmptyLevel_polar (φ : SchwartzMap ℝ ℂ) (hφ0 : φ 0 = 0)
 /-! ### The measure on the quotient -/
 
 /-- Over ℚ with `S = ∅` the norm is injective on the quotient. -/
-private theorem ratEmptyLevel_norm_injective :
+theorem ratEmptyLevel_norm_injective :
     Function.Injective (sIdeleQuotientNorm ℚ ∅) := by
   rw [injective_iff_map_eq_one]
   intro g hg
@@ -870,13 +871,15 @@ theorem exists_linearIsometry_map_sLocalInvariantPWSobolev_rat
       (∀ x : ℝ, x ≠ 0 → ((sIdeleQuotientNorm ℚ ∅ (κ x) : ℝ≥0) : ℝ) = |x|) ∧
       (∀ F, (U F : ℝ → ℂ) =ᵐ[volume] fun x ↦
         ((c * |x| ^ (-(1 / 2) : ℝ) : ℝ) : ℂ) * F (κ x)) ∧
+      QuasiMeasurePreserving κ volume (localMeasure(ℚ, ∅, 0)) ∧
       (sLocalInvariantPWSobolev (F := ℚ) (S := ∅) (s := 0) le_rfl (a := 1 / 2) (by norm_num)
         ω Y).map U.toLinearMap = realPWLevel Y := by
   obtain ⟨U, hU⟩ := ratEmptyLevel_exists_isometry
   have hd : (0 : ℝ) < ratEmptyLevel_const := NNReal.coe_pos.mpr ratEmptyLevel_const_pos
   have h0 : ∀ᵐ x : ℝ, x ≠ 0 := compl_mem_ae_iff.mpr (measure_singleton (0 : ℝ))
   refine ⟨U, ratEmptyLevel_class, Real.sqrt ((ratEmptyLevel_const : ℝ) / 2),
-    Real.sqrt_pos.mpr (by positivity), fun x hx ↦ ratEmptyLevel_norm_class hx, fun F ↦ ?_, ?_⟩
+    Real.sqrt_pos.mpr (by positivity), fun x hx ↦ ratEmptyLevel_norm_class hx, fun F ↦ ?_,
+    ?_, ?_⟩
   · filter_upwards [hU F, h0] with x e hx
     have hpos : 0 < |x| := abs_pos.mpr hx
     have hw : Real.sqrt (ratEmptyLevel_weight x) =
@@ -884,6 +887,14 @@ theorem exists_linearIsometry_map_sLocalInvariantPWSobolev_rat
       rw [← ratEmptyLevel_sqrt_weight_mul hx, mul_assoc, ← Real.rpow_add hpos]
       norm_num
     rw [e, hw]
+  · have hac : (volume : Measure ℝ) ≪
+        (volume : Measure ℝ).withDensity (fun x ↦ (ratEmptyLevel_weight x : ℝ≥0∞)) :=
+      withDensity_absolutelyContinuous'
+        ratEmptyLevel_measurable_weight.coe_nnreal_ennreal.aemeasurable
+        (.of_forall fun x ↦ by simpa using (ratEmptyLevel_weight_pos x).ne')
+    refine ⟨ratEmptyLevel_measurePreserving_class.measurable.aemeasurable, ?_⟩
+    have h := hac.map ratEmptyLevel_measurePreserving_class.measurable
+    rwa [ratEmptyLevel_measurePreserving_class.map_eq] at h
   · have hcl : ∀ S : Submodule ℂ (Lp ℂ 2 (localMeasure(ℚ, ∅, 0))),
         S.topologicalClosure.map U.toLinearMap = (S.map U.toLinearMap).topologicalClosure := by
       intro S
