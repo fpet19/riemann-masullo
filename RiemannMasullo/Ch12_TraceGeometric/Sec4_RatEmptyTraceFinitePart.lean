@@ -223,7 +223,7 @@ open Real Set Filter MeasureTheory Topology
 namespace RiemannMasullo
 
 /-- The finite term is the convergent sine-integral remainder for the chosen seam window. -/
-private def realCentralSeamFinitePart (δ : ℝ) : ℝ :=
+def realCentralSeamFinitePart (δ : ℝ) : ℝ :=
   (2 / π) * ((∫ x in (0 : ℝ)..1, seamSi (2 * π * δ) x / x) +
     ∫ x in Ioi (1 : ℝ), (seamSi (2 * π * δ) x - π / 2) / x)
 
@@ -238,6 +238,40 @@ private theorem tendsto_flatSeam_reference {δ : ℝ} (hδ : 0 < δ) :
   filter_upwards [Measure.ae_ne volume (0 : ℝ)] with c hc _
   rw [integral_realBandKernel_mul hc, flatSeamKernel]
   simp only [one_mul]
+
+private theorem integral_flatSeam_scale (R δ : ℝ) {a : ℝ} (ha : 0 < a) :
+    (∫ c in (-(a * δ))..(a * δ), flatSeamKernel R c) =
+      ∫ c in (-δ)..δ, flatSeamKernel (a * R) c := by
+  have hk (c : ℝ) : flatSeamKernel (a * R) c = a * flatSeamKernel R (a * c) := by
+    unfold flatSeamKernel
+    rw [show 2 * π * c * (a * R) = 2 * π * (a * c) * R by ring,
+      show π * (a * c) = a * (π * c) by ring, mul_inv_rev a (π * c)]
+    calc _ = (a * a⁻¹) * ((π * c)⁻¹ * ∫ t in (0 : ℝ)..(2 * π * (a * c) * R), sinc t) := by
+           rw [mul_inv_cancel₀ ha.ne', one_mul]
+         _ = _ := by ring
+  simp_rw [hk]
+  rw [intervalIntegral.integral_const_mul,
+    intervalIntegral.integral_comp_mul_left (flatSeamKernel R) ha.ne', smul_eq_mul,
+    mul_neg, ← mul_assoc, mul_inv_cancel₀ ha.ne', one_mul]
+
+/-- Dilating the phase window adds exactly the logarithm of the dilation. -/
+theorem realCentralSeamFinitePart_mul {a δ : ℝ} (ha : 0 < a) (hδ : 0 < δ) :
+    realCentralSeamFinitePart (a * δ) = realCentralSeamFinitePart δ + log a := by
+  have ht : Tendsto (fun R : ℝ ↦ a * R) atTop atTop :=
+    (tendsto_const_mul_atTop_of_pos ha).mpr tendsto_id
+  apply tendsto_nhds_unique (tendsto_flatSeam_reference (mul_pos ha hδ))
+  refine (((tendsto_flatSeam_reference hδ).comp ht).add_const (log a)).congr' ?_
+  filter_upwards [eventually_gt_atTop (0 : ℝ)] with R hR
+  change ((∫ c in (-δ)..δ, flatSeamKernel (a * R) c) - log (a * R)) + log a = _
+  rw [integral_flatSeam_scale R δ ha, log_mul ha.ne' hR.ne']
+  ring
+
+/-- The difference of finite reference constants needs no evaluation of either integral. -/
+theorem realCentralSeamFinitePart_sub {δ δ' : ℝ} (hδ : 0 < δ) (hδ' : 0 < δ') :
+    realCentralSeamFinitePart δ' - realCentralSeamFinitePart δ = log (δ' / δ) := by
+  have h := realCentralSeamFinitePart_mul (div_pos hδ' hδ) hδ
+  rw [div_mul_cancel₀ _ hδ.ne'] at h
+  linarith
 
 /-- Exact finite part in the central additive phase variable, allowing a nonzero
 weight at one (phase zero). The remainder is an ordinary integrable function. -/
