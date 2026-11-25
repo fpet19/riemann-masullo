@@ -25,8 +25,8 @@ polar-free subprojection subtracts the normalized Lebesgue mean on that band.
 The gate in (12.4.1.8) precedes the dilation. For every bounded measurable complex gate
 the resulting polar matrix coefficient is `a⁻¹ᐟ² ∫₀^{min(1, a)} Q(u) du`. A sharp gate
 of relative radius `0 ≤ r ≤ 1` gives `min(a, r)/√a`. The two-sided compression
-difference is nuclear, and its Hilbert trace has the negative of this sign after
-integration against the compact dilation test and the multiplicative Haar measure.
+difference is nuclear. Its Hilbert trace is the negative of the integral of the
+coefficient against the compact test and the multiplicative Haar measure.
 -/
 
 @[expose] public noncomputable section
