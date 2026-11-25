@@ -267,4 +267,76 @@ theorem retainedIndentationShell_two_three_mismatch_of_equal_weights
   · exact Or.inr (h.trans_ne ha₂)
   · exact Or.inl h
 
+
+local notation "prin" => IdeleGroup.unitEmbedding (𝓞 F) F
+
+private def constantSheetPrefixMass (T : Finset V) (A B : Fˣ → ℝ) : ℝ :=
+  ∑' rs : Fˣ × Fˣ, if ∀ v ∈ T,
+    Valued.v ((prin rs.1).val.2 v) = Valued.v ((prin rs.2).val.2 v)
+    then A rs.1 * B rs.2 else 0
+
+private theorem indentationPrefixMass_eq_of_constant_sheet_weights
+    (T : Finset V) (A B : Fˣ → ℝ) {b : I𝔽 → ℝ} {x y : I𝔽}
+    (h : ∀ r : Fˣ, b (prin r * x) = A r ∧ b (prin r * y) = B r)
+    (hy : ∀ v : V, Valued.v (y.val.2 v) = 1) :
+    divisorialIndentationPrefixMass T b x y = constantSheetPrefixMass T A B := by
+  unfold divisorialIndentationPrefixMass constantSheetPrefixMass
+  apply tsum_congr
+  rintro ⟨r, s⟩
+  have hv (v : V) : Valued.v ((prin s * y).val.2 v) = Valued.v ((prin s).val.2 v) := by
+    change Valued.v (((prin s).val.2 v) * (y.val.2 v)) = _
+    rw [map_mul, hy, mul_one]
+  simp only [hv, (h r).1, (h s).2]
+
+/-- Paper: Theorem 11.3.2.1, p. 495, with the normalized lift of p. 508.
+Deviation: If the two principal-sheet laws are constant across the samples and the
+second sampled idele is a finite unit, all retained shell integrals of a common
+kernel are scalar multiples of the same integral. Hence no such indentation can
+reproduce both orbital terms at residue sizes two and three for every radial test. -/
+theorem retainedIndentationShell_two_three_mismatch_of_constant_sheet_weights
+    {Ω : Type*} [MeasurableSpace Ω] (μ : Measure Ω) (x y : Ω → I𝔽)
+    (S : Finset V) (k₂ k₃ : ℕ) {b : I𝔽 → ℝ} (hb : IsIndentation H𝔽 Measure.count b)
+    (A B : Fˣ → ℝ)
+    (hweights : ∀ᵐ z ∂μ,
+      (∀ r : Fˣ, b (prin r * x z) = A r ∧ b (prin r * y z) = B r) ∧
+        (∀ v : V, Valued.v ((y z).val.2 v) = 1))
+    (K : 𝒟 → C𝔽 × C𝔽 → ℂ) (a₂ a₃ : ℂ) (ha₂ : a₂ ≠ 0) (ha₃ : a₃ ≠ 0)
+    (v₂ v₃ : V) (h₂ : (v₂.asIdeal.absNorm : ℝ) = 2) (h₃ : (v₃.asIdeal.absNorm : ℝ) = 3)
+    (π₂ : (v₂.adicCompletion F)ˣ) (π₃ : (v₃.adicCompletion F)ˣ)
+    (hπ₂ : Valued.v.IsUniformizer (π₂ : v₂.adicCompletion F))
+    (hπ₃ : Valued.v.IsUniformizer (π₃ : v₃.adicCompletion F)) :
+    ∃ φ : 𝒟, tsupport φ.val ⊆ {u | 1 < normValue(u)} ∧
+      (∀ x y : C𝔽, normValue(x) = normValue(y) → φ.val x = φ.val y) ∧
+      ((∫ z, retainedIndentationShell S k₂ b (K φ) (x z) (y z) ∂μ) ≠
+        a₂ * (∑' n : ℤ, φ.val (πclass(v₂, π₂) ^ n)) ∨
+      (∫ z, retainedIndentationShell S k₃ b (K φ) (x z) (y z) ∂μ) ≠
+        a₃ * (∑' n : ℤ, φ.val (πclass(v₃, π₃) ^ n))) := by
+  let d (k : ℕ) : ℂ :=
+    ((constantSheetPrefixMass (primaryDivisorialPlaces F S (k + 1)) A B -
+      constantSheetPrefixMass (primaryDivisorialPlaces F S k) A B : ℝ) : ℂ)
+  let D (φ : 𝒟) : ℂ := ∫ z, K φ (π𝔽 (x z), π𝔽 (y z)) ∂μ
+  have hfactor (φ : 𝒟) (k : ℕ) :
+      (∫ z, retainedIndentationShell S k b (K φ) (x z) (y z) ∂μ) = d k * D φ := by
+    unfold D
+    rw [← integral_const_mul]
+    apply integral_congr_ae
+    filter_upwards [hweights] with z hz
+    simp only [retainedIndentationShell_eq_mul _ _ hb, retainedIndentationWeight, d,
+      indentationPrefixMass_eq_of_constant_sheet_weights _ A B hz.1 hz.2]
+  obtain ⟨φ₂, φ₃, hφ₂, hφ₃, hr₂, hr₃, h₂₂, h₃₂, _, h₃₃⟩ :=
+    exists_two_three_separating_orbital_tests v₂ v₃ h₂ h₃ π₂ π₃ hπ₂ hπ₃
+  by_contra hn
+  push Not at hn
+  obtain ⟨he₂, he₃⟩ := hn φ₂ hφ₂ hr₂
+  rw [hfactor, h₂₂, mul_one] at he₂
+  rw [hfactor, h₃₂, mul_zero] at he₃
+  have hD : D φ₂ ≠ 0 := by
+    intro hd
+    rw [hd, mul_zero] at he₂
+    exact ha₂ he₂.symm
+  have hd₃ : d k₃ = 0 := (mul_eq_zero.mp he₃).resolve_right hD
+  have he := (hn φ₃ hφ₃ hr₃).2
+  rw [hfactor, hd₃, zero_mul, h₃₃, mul_one] at he
+  exact ha₃ he.symm
+
 end RiemannMasullo
