@@ -154,9 +154,9 @@ private theorem vanishingWeight_jet :
     simp [vanishingWeight, hr]
   have hD : deriv (fun r : ℝ ↦ (r - 1)^2) = fun r ↦ 2 * (r - 1) := by
     ext r
-    exact (((hasDerivAt_id r).sub_const 1).pow 2).deriv.trans (by ring)
+    exact (((hasDerivAt_id r).sub_const 1).pow 2).deriv.trans (by simp)
   have hDD : deriv (fun r : ℝ ↦ 2 * (r - 1)) 1 = 2 := by
-    simpa using (((hasDerivAt_id (1 : ℝ)).sub_const 1).const_mul 2).deriv
+    convert (((hasDerivAt_id (1 : ℝ)).sub_const 1).const_mul 2).deriv using 1 <;> norm_num
   rw [he.eq_of_nhds, he.deriv_eq, he.deriv.deriv_eq, hD, hDD]
   norm_num
 
