@@ -33,7 +33,10 @@ along any filter:
   `1/2 ∫ φ(g) g^(1/2) (1/|1 - g| + 1/|1 + g|) d×g`, the real-place term of (12.5.1.1) for an
   even test function. This is what pp. 516–519 compute.
 * `sLocalTrace_realPWLevel_diagonal_tendsto`: on the level the limit is that term minus
-  `∫ φ(g) min(g^(1/2), g^(-1/2)) d×g`.
+  `∫ φ(g) min(g^(1/2), g^(-1/2)) d×g`. For a test function supported above norm one this is
+  `V_∞ - L₋` in the notation of the comments on issue 7354
+  (`sLocalTrace_realPWLevel_diagonal_tendsto_of_one_lt`), the case without finite places of the
+  limit stated there for every finite set of rational places.
 * `sLocalTrace_realPWLevel_diagonal_not_tendsto_principalValue` and
   `sLocalTrace_realPWLevel_diagonal_not_tendsto_sub_poles`: for `φ > 0` on `(a, b)` the limit
   on the level is neither the real-place term alone nor that term minus
@@ -745,6 +748,42 @@ theorem sLocalTrace_realPWLevel_diagonal_tendsto (ha : 0 < a) (hab : a ≤ b) (h
   rw [← integral_integral_realPWLevelDiagonal_swap ha hab (continuousOn_weight ha hφ)]
   refine intervalIntegral.integral_congr fun x _ ↦ intervalIntegral.integral_congr fun g _ ↦ ?_
   ring
+
+/-- Paper: Theorem 12.4.1.1, pp. 514–519. The limit on the level for a test function supported
+above norm one, in the form `V_∞ - L₋` used in the comments on issue 7354:
+`V_∞ = ∫ φ(g) g^(3/2) / (g² - 1) d×g` is the real-place term of (12.5.1.1) and
+`L₋ = ∫ φ(g) g^(-1/2) d×g` is the Mellin transform `M(φ)(|·|^(-1/2))`.
+Reconstruction: as for `sLocalTrace_realPWLevel_diagonal_tendsto`. -/
+theorem sLocalTrace_realPWLevel_diagonal_tendsto_of_one_lt (ha : 1 < a) (hab : a ≤ b)
+    (hφ : ContinuousOn φ (Icc a b)) (hYL : Tendsto (fun i ↦ Y i * L i) l atTop) :
+    Tendsto (fun i ↦ ∫ x in (0 : ℝ)..L i, ∫ g in a..b,
+        φ g * ((√g)⁻¹ * realPWLevelDiagonal (Y i) g x) / g) l
+      (𝓝 ((∫ g in a..b, φ g * (g * √g / (g ^ 2 - 1)) / g) -
+        ∫ g in a..b, φ g * (√g)⁻¹ / g)) := by
+  have h1 : (1 : ℝ) ∉ Icc a b := fun h ↦ absurd h.1 (not_le.mpr ha)
+  have h := sLocalTrace_realPWLevel_diagonal_tendsto (zero_lt_one.trans ha) hab h1 hφ hYL
+  have e1 : ∫ g in a..b, φ g * (1 / 2 * (√g / |1 - g| + √g / |1 + g|)) / g =
+      ∫ g in a..b, φ g * (g * √g / (g ^ 2 - 1)) / g := by
+    refine intervalIntegral.integral_congr fun g hg ↦ ?_
+    rw [uIcc_of_le hab] at hg
+    have hg1 : 1 < g := ha.trans_le hg.1
+    have h2 : g - 1 ≠ 0 := (sub_pos.mpr hg1).ne'
+    have h3 : g + 1 ≠ 0 := by positivity
+    have h4 : g ^ 2 - 1 ≠ 0 := by
+      have : 0 < g ^ 2 - 1 := by nlinarith
+      exact this.ne'
+    have e : 1 / 2 * (√g / |1 - g| + √g / |1 + g|) = g * √g / (g ^ 2 - 1) := by
+      rw [abs_of_neg (by linarith), abs_of_pos (by linarith), neg_sub, add_comm 1 g]
+      field_simp
+      ring
+    simp only [e]
+  have e2 : ∫ g in a..b, φ g * min (√g) (√g)⁻¹ / g = ∫ g in a..b, φ g * (√g)⁻¹ / g := by
+    refine intervalIntegral.integral_congr fun g hg ↦ ?_
+    rw [uIcc_of_le hab] at hg
+    have hs1 : 1 ≤ √g := Real.one_le_sqrt.mpr (ha.trans_le hg.1).le
+    have hle : (√g)⁻¹ ≤ √g := (inv_le_one_of_one_le₀ hs1).trans hs1
+    simp only [min_eq_right hle]
+  rwa [e1, e2] at h
 
 end Paper
 
