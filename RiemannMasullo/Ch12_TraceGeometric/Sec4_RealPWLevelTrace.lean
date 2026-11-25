@@ -31,12 +31,13 @@ The composite is the compression of the cutoff dilation to the level.
 * `tendsto_integral_hilbertTrace_realPWLevel_compression`: averaged against `φ(g) d×g`, the
   traces tend to the real-place term of (12.5.1.1) minus `∫ φ(g) min(g^(1/2), g^(-1/2)) d×g`.
 
-**Not formalized.** That the first kernel operator is the Fourier projection onto the band
-composed with the cutoff, and the second the cutoff composed with the dilation and the
-projection onto the level: the kernels are those of these operators, and the operators
-themselves are not built from the Fourier transform here. The average of the operators against
-`φ` is not formed, only the average of their traces. The identification of this level with the
-level of the paper is described in the header of `Sec4_RealPWLevelDiagonal`.
+**Not formalized here.** That the first kernel operator is the Fourier projection onto the band
+composed with the cutoff is not proved. That the second is the cutoff composed with the dilation
+and the projection onto the level is proved in `Sec4_RealPWLevelOperator`, which also computes
+the trace of the compression written with the projection onto the level on both sides. The
+average of the operators against `φ` is not formed, only the average of their traces. The
+identification of this level with the level of the paper is described in the header of
+`Sec4_RealPWLevelDiagonal`.
 -/
 
 open MeasureTheory Real Set Filter Topology
