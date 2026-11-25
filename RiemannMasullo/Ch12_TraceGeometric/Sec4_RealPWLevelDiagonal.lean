@@ -42,6 +42,12 @@ along any filter:
   on the level is neither the real-place term alone nor that term minus
   `∫ φ(g) (g^(1/2) + g^(-1/2)) d×g`, the value used on p. 520.
 
+* `sLocalTrace_realPWLevel_diagonal_floor_tendsto` and
+  `sLocalTrace_realPWLevel_diagonal_floor_tendsto_zero`: with a spatial floor, as in the
+  cutoffs on `[1/λ, λ]` of Definition 9.3.3.1 and footnote 2 on p. 514, the limit is unchanged
+  when `Y * h → 0` and is zero when `Y * h → ∞`. `tendsto_integral_realPWLevelDiagonal_floor`
+  gives the value in between.
+
 The computation is exact at every finite `Y` and `L`: the integral over `[0, L]` of each of
 the three diagonals is a combination of sine integrals and cosines at multiples of `Y * L`
 (`integral_realPWBandDiagonal`, `integral_realPWPolarDiagonal`), and the limits follow from the
@@ -340,22 +346,47 @@ theorem abs_realPWBandDiagonalMass_le (R g : ℝ) :
   exact add_le_add (mul_le_mul_of_nonneg_left (abs_integral_sinc_le _) (by positivity))
     (mul_le_mul_of_nonneg_left (abs_integral_sinc_le _) (by positivity))
 
-/-- A bound for the rank-one mass that does not depend on `R ≥ 1`. -/
-theorem abs_realPWPolarDiagonalMass_le {R : ℝ} (hR : 1 ≤ R) (g : ℝ) :
+/-- The cosine difference of the rank-one mass as a product of two sines. -/
+private theorem abs_cos_sub_cos_eq (g R : ℝ) :
+    |cos (2 * π * (1 / g + 1) * R) - cos (2 * π * (1 / g - 1) * R)| =
+      2 * |sin (2 * π * (1 / g) * R)| * |sin (2 * π * R)| := by
+  rw [cos_sub_cos,
+    show (2 * π * (1 / g + 1) * R + 2 * π * (1 / g - 1) * R) / 2 = 2 * π * (1 / g) * R by ring,
+    show (2 * π * (1 / g + 1) * R - 2 * π * (1 / g - 1) * R) / 2 = 2 * π * R by ring,
+    abs_mul, abs_mul, abs_neg, abs_two]
+
+/-- The cosine term of the rank-one mass is at most `2`, for every `R`. -/
+private theorem abs_cos_sub_cos_div_le_two (g R : ℝ) :
+    |(cos (2 * π * (1 / g + 1) * R) - cos (2 * π * (1 / g - 1) * R)) / (2 * π * R)| ≤ 2 := by
+  rcases eq_or_ne R 0 with rfl | hR
+  · simp
+  · have hpos : 0 < |2 * π * R| := abs_pos.mpr (mul_ne_zero (mul_ne_zero two_ne_zero pi_ne_zero) hR)
+    have h1 := abs_sin_le_one (2 * π * (1 / g) * R)
+    have h2 : |sin (2 * π * R)| ≤ |2 * π * R| := abs_sin_le_abs
+    rw [abs_div, div_le_iff₀ hpos, abs_cos_sub_cos_eq]
+    nlinarith [abs_nonneg (sin (2 * π * (1 / g) * R)), abs_nonneg (sin (2 * π * R))]
+
+/-- The cosine term of the rank-one mass is `O(R)` near `R = 0`. -/
+private theorem abs_cos_sub_cos_div_le_mul (g R : ℝ) :
+    |(cos (2 * π * (1 / g + 1) * R) - cos (2 * π * (1 / g - 1) * R)) / (2 * π * R)| ≤
+      2 * |2 * π * (1 / g) * R| := by
+  rcases eq_or_ne R 0 with rfl | hR
+  · simp
+  · have hpos : 0 < |2 * π * R| := abs_pos.mpr (mul_ne_zero (mul_ne_zero two_ne_zero pi_ne_zero) hR)
+    have h1 : |sin (2 * π * (1 / g) * R)| ≤ |2 * π * (1 / g) * R| := abs_sin_le_abs
+    have h2 : |sin (2 * π * R)| ≤ |2 * π * R| := abs_sin_le_abs
+    rw [abs_div, div_le_iff₀ hpos, abs_cos_sub_cos_eq]
+    nlinarith [abs_nonneg (sin (2 * π * (1 / g) * R)), abs_nonneg (sin (2 * π * R)),
+      abs_nonneg (2 * π * (1 / g) * R)]
+
+/-- A bound for the rank-one mass that does not depend on `R`. -/
+theorem abs_realPWPolarDiagonalMass_le (R g : ℝ) :
     |realPWPolarDiagonalMass R g| ≤
-      |g| / π * ((|1 / g + 1| + |1 / g - 1|) * (π / 2 + 2) + 1) := by
+      |g| / π * ((|1 / g + 1| + |1 / g - 1|) * (π / 2 + 2) + 2) := by
   unfold realPWPolarDiagonalMass
   rw [abs_mul, abs_div, abs_of_pos pi_pos]
   refine mul_le_mul_of_nonneg_left ?_ (by positivity)
-  have hcos : |(cos (2 * π * (1 / g + 1) * R) - cos (2 * π * (1 / g - 1) * R)) / (2 * π * R)|
-      ≤ 1 := by
-    have hden : (2 : ℝ) ≤ 2 * π * R := by nlinarith [two_le_pi]
-    have hc1 := abs_cos_le_one (2 * π * (1 / g + 1) * R)
-    have hc2 := abs_cos_le_one (2 * π * (1 / g - 1) * R)
-    have hc : |cos (2 * π * (1 / g + 1) * R) - cos (2 * π * (1 / g - 1) * R)| ≤ 2 :=
-      (abs_sub _ _).trans (by linarith)
-    rw [abs_div, abs_of_pos (by linarith : 0 < 2 * π * R), div_le_one (by linarith)]
-    exact hc.trans hden
+  have hcos := abs_cos_sub_cos_div_le_two g R
   have h1 : |(1 / g + 1) * ∫ t in (0 : ℝ)..(2 * π * (1 / g + 1) * R), sinc t| ≤
       |1 / g + 1| * (π / 2 + 2) := by
     rw [abs_mul]
@@ -424,7 +455,7 @@ private theorem continuousOn_bandBound (ha : 0 < a) (hab : a ≤ b) (h1 : 1 ∉ 
     exact mul_ne_zero hc (abs_ne_zero.mpr this.ne')
 
 private theorem continuousOn_polarBound (ha : 0 < a) (hab : a ≤ b) :
-    ContinuousOn (fun g : ℝ ↦ |g| / π * ((|1 / g + 1| + |1 / g - 1|) * (π / 2 + 2) + 1))
+    ContinuousOn (fun g : ℝ ↦ |g| / π * ((|1 / g + 1| + |1 / g - 1|) * (π / 2 + 2) + 2))
       (uIcc a b) := by
   rw [uIcc_of_le hab]
   exact (continuous_abs.continuousOn.div_const π).mul
@@ -481,11 +512,10 @@ theorem tendsto_integral_realPWPolarDiagonalMass (ha : 0 < a) (hab : a ≤ b)
     Tendsto (fun i ↦ ∫ g in a..b, w g * realPWPolarDiagonalMass (R i) g) l
       (𝓝 (∫ g in a..b, w g * min 1 g)) := by
   refine tendsto_intervalIntegral_mul_of_abs_le hw (continuousOn_polarBound ha hab)
-    (Eventually.of_forall fun i ↦ measurable_realPWPolarDiagonalMass _) ?_ fun g hg ↦ ?_
-  · filter_upwards [hR.eventually_ge_atTop 1] with i hi g _
-    exact abs_realPWPolarDiagonalMass_le hi g
-  · rw [uIoc_of_le hab] at hg
-    exact tendsto_realPWPolarDiagonalMass hR (ha.trans hg.1)
+    (Eventually.of_forall fun i ↦ measurable_realPWPolarDiagonalMass _)
+    (Eventually.of_forall fun i g _ ↦ abs_realPWPolarDiagonalMass_le _ g) fun g hg ↦ ?_
+  rw [uIoc_of_le hab] at hg
+  exact tendsto_realPWPolarDiagonalMass hR (ha.trans hg.1)
 
 /-- The weighted level masses tend to the difference of the two limits. -/
 theorem tendsto_integral_realPWLevelDiagonalMass (ha : 0 < a) (hab : a ≤ b) (h1 : 1 ∉ Icc a b)
@@ -497,14 +527,14 @@ theorem tendsto_integral_realPWLevelDiagonalMass (ha : 0 < a) (hab : a ≤ b) (h
     ((continuousOn_bandBound ha hab h1 π (π / 2 + 2) pi_ne_zero).add
       (continuousOn_polarBound ha hab))
     (Eventually.of_forall fun i ↦ (measurable_realPWBandDiagonalMass _).sub
-      (measurable_realPWPolarDiagonalMass _)) ?_ fun g hg ↦ ?_
-  · filter_upwards [hR.eventually_ge_atTop 1] with i hi g _
-    exact (abs_sub _ _).trans (add_le_add (abs_realPWBandDiagonalMass_le _ _)
-      (abs_realPWPolarDiagonalMass_le hi g))
-  · rw [uIoc_of_le hab] at hg
-    exact (tendsto_realPWBandDiagonalMass hR (ha.trans hg.1)
-      (ne_one_of_mem_Icc h1 (Ioc_subset_Icc_self hg))).sub
-      (tendsto_realPWPolarDiagonalMass hR (ha.trans hg.1))
+      (measurable_realPWPolarDiagonalMass _))
+    (Eventually.of_forall fun i g _ ↦ (abs_sub _ _).trans
+      (add_le_add (abs_realPWBandDiagonalMass_le _ _) (abs_realPWPolarDiagonalMass_le _ g)))
+    fun g hg ↦ ?_
+  rw [uIoc_of_le hab] at hg
+  exact (tendsto_realPWBandDiagonalMass hR (ha.trans hg.1)
+    (ne_one_of_mem_Icc h1 (Ioc_subset_Icc_self hg))).sub
+    (tendsto_realPWPolarDiagonalMass hR (ha.trans hg.1))
 
 /-- The integral of the level diagonal over `[0, L]`. -/
 theorem integral_realPWLevelDiagonal {g Y L : ℝ} (hg0 : 0 < g) (hg1 : g ≠ 1) (hY : Y ≠ 0)
@@ -557,6 +587,163 @@ theorem tendsto_integral_realPWLevelDiagonal (ha : 0 < a) (hab : a ≤ b) (h1 : 
 
 end Main
 
+/-! ### A spatial floor
+
+Definition 9.3.3.1 and footnote 2 on p. 514 use spatial cutoffs supported on `[1/λ, λ]`. With a
+sharp cutoff `1_[h, L]` the diagonal integral is the difference of the closed forms at `Y * L`
+and at `Y * h`, so the limit depends on `Y * h`: it is the limit without a floor when
+`Y * h → 0`, it is zero when `Y * h → ∞`, and in between it is the limit without a floor minus
+the mass at `lim Y * h`. -/
+
+section Floor
+
+/-- The band mass is continuous in `R`. -/
+theorem continuous_realPWBandDiagonalMass_left (g : ℝ) :
+    Continuous fun R : ℝ ↦ realPWBandDiagonalMass R g := by
+  unfold realPWBandDiagonalMass
+  exact (continuous_const.mul (continuous_integral_sinc.comp (by fun_prop))).add
+    (continuous_const.mul (continuous_integral_sinc.comp (by fun_prop)))
+
+private theorem continuous_cos_sub_cos_div (g : ℝ) :
+    Continuous fun R : ℝ ↦
+      (cos (2 * π * (1 / g + 1) * R) - cos (2 * π * (1 / g - 1) * R)) / (2 * π * R) := by
+  rw [continuous_iff_continuousAt]
+  intro R
+  rcases eq_or_ne R 0 with rfl | hR
+  · have h0 : Tendsto (fun R : ℝ ↦ 2 * |2 * π * (1 / g) * R|) (𝓝 0) (𝓝 0) := by
+      have hc : Continuous fun R : ℝ ↦ 2 * |2 * π * (1 / g) * R| := by fun_prop
+      simpa using hc.tendsto 0
+    have h := squeeze_zero_norm (fun R ↦ by
+      rw [Real.norm_eq_abs]
+      exact abs_cos_sub_cos_div_le_mul g R) h0
+    rw [ContinuousAt]
+    simpa using h
+  · exact ContinuousAt.div (by fun_prop) (by fun_prop)
+      (mul_ne_zero (mul_ne_zero two_ne_zero pi_ne_zero) hR)
+
+/-- The rank-one mass is continuous in `R`. -/
+theorem continuous_realPWPolarDiagonalMass_left (g : ℝ) :
+    Continuous fun R : ℝ ↦ realPWPolarDiagonalMass R g := by
+  unfold realPWPolarDiagonalMass
+  exact continuous_const.mul
+    (((continuous_const.mul (continuous_integral_sinc.comp (by fun_prop))).sub
+      (continuous_const.mul (continuous_integral_sinc.comp (by fun_prop)))).add
+      (continuous_cos_sub_cos_div g))
+
+/-- The band mass vanishes at `R = 0`. -/
+theorem realPWBandDiagonalMass_zero (g : ℝ) : realPWBandDiagonalMass 0 g = 0 := by
+  simp [realPWBandDiagonalMass]
+
+/-- The rank-one mass vanishes at `R = 0`. -/
+theorem realPWPolarDiagonalMass_zero (g : ℝ) : realPWPolarDiagonalMass 0 g = 0 := by
+  simp [realPWPolarDiagonalMass]
+
+/-- The integral of the level diagonal over `[h, L]`: the closed form at `Y * L` minus the
+closed form at `Y * h`. -/
+theorem integral_realPWLevelDiagonal_floor {g Y L : ℝ} (hg0 : 0 < g) (hg1 : g ≠ 1) (hY : Y ≠ 0)
+    (hL : L ≠ 0) (h : ℝ) :
+    ∫ x in h..L, realPWLevelDiagonal Y g x =
+      (realPWBandDiagonalMass (Y * L) g - realPWPolarDiagonalMass (Y * L) g) -
+        (realPWBandDiagonalMass (Y * h) g - realPWPolarDiagonalMass (Y * h) g) := by
+  have hc : Continuous (realPWLevelDiagonal Y g) := by
+    unfold realPWLevelDiagonal
+    exact (continuous_realPWBandDiagonal Y g).sub (continuous_realPWPolarDiagonal Y g)
+  have h0 : ∫ x in (0 : ℝ)..h, realPWLevelDiagonal Y g x =
+      realPWBandDiagonalMass (Y * h) g - realPWPolarDiagonalMass (Y * h) g := by
+    rcases eq_or_ne h 0 with rfl | hh
+    · simp [realPWBandDiagonalMass_zero, realPWPolarDiagonalMass_zero]
+    · exact integral_realPWLevelDiagonal hg0 hg1 hY hh
+  rw [← intervalIntegral.integral_interval_sub_left (hc.intervalIntegrable 0 L)
+    (hc.intervalIntegrable 0 h), integral_realPWLevelDiagonal hg0 hg1 hY hL, h0]
+
+variable {a b : ℝ} {w : ℝ → ℝ} {ι : Type*} {l : Filter ι} [l.IsCountablyGenerated]
+  {Y L h : ι → ℝ}
+
+private theorem eventually_integral_floor_eq (ha : 0 < a) (hab : a ≤ b) (h1 : 1 ∉ Icc a b)
+    (hYL : Tendsto (fun i ↦ Y i * L i) l atTop) :
+    (fun i ↦ ∫ g in a..b, w g *
+      ((realPWBandDiagonalMass (Y i * L i) g - realPWPolarDiagonalMass (Y i * L i) g) -
+        (realPWBandDiagonalMass (Y i * h i) g - realPWPolarDiagonalMass (Y i * h i) g))) =ᶠ[l]
+      fun i ↦ ∫ g in a..b, w g * ∫ x in (h i)..(L i), realPWLevelDiagonal (Y i) g x := by
+  filter_upwards [hYL.eventually_gt_atTop 0] with i hi
+  refine intervalIntegral.integral_congr fun g hg ↦ ?_
+  rw [uIcc_of_le hab] at hg
+  rw [integral_realPWLevelDiagonal_floor (ha.trans_le hg.1) (ne_one_of_mem_Icc h1 hg)
+    (left_ne_zero_of_mul hi.ne') (right_ne_zero_of_mul hi.ne')]
+
+/-- Paper: Theorem 12.4.1.1, p. 514, footnote 2. With a spatial floor `h` such that
+`Y * h → c`, the weighted integrals of the level diagonal over `[h, L] × [a, b]` tend to the
+limit without a floor minus the weighted mass at `c`. -/
+theorem tendsto_integral_realPWLevelDiagonal_floor (ha : 0 < a) (hab : a ≤ b)
+    (h1 : 1 ∉ Icc a b) (hw : IntervalIntegrable w volume a b)
+    (hYL : Tendsto (fun i ↦ Y i * L i) l atTop) {c : ℝ}
+    (hYh : Tendsto (fun i ↦ Y i * h i) l (𝓝 c)) :
+    Tendsto (fun i ↦ ∫ g in a..b, w g * ∫ x in (h i)..(L i), realPWLevelDiagonal (Y i) g x) l
+      (𝓝 (∫ g in a..b, w g * (((2 * |1 / g - 1|)⁻¹ + (2 * (1 / g + 1))⁻¹ - min 1 g) -
+        (realPWBandDiagonalMass c g - realPWPolarDiagonalMass c g)))) := by
+  refine Tendsto.congr' (eventually_integral_floor_eq ha hab h1 hYL) ?_
+  have hK := (continuousOn_bandBound ha hab h1 π (π / 2 + 2) pi_ne_zero).add
+    (continuousOn_polarBound ha hab)
+  refine tendsto_intervalIntegral_mul_of_abs_le hw (hK.add hK)
+    (Eventually.of_forall fun i ↦ ((measurable_realPWBandDiagonalMass _).sub
+      (measurable_realPWPolarDiagonalMass _)).sub ((measurable_realPWBandDiagonalMass _).sub
+      (measurable_realPWPolarDiagonalMass _)))
+    (Eventually.of_forall fun i g _ ↦ (abs_sub _ _).trans (add_le_add
+      ((abs_sub _ _).trans (add_le_add (abs_realPWBandDiagonalMass_le _ _)
+        (abs_realPWPolarDiagonalMass_le _ g)))
+      ((abs_sub _ _).trans (add_le_add (abs_realPWBandDiagonalMass_le _ _)
+        (abs_realPWPolarDiagonalMass_le _ g)))))
+    fun g hg ↦ ?_
+  rw [uIoc_of_le hab] at hg
+  exact ((tendsto_realPWBandDiagonalMass hYL (ha.trans hg.1)
+    (ne_one_of_mem_Icc h1 (Ioc_subset_Icc_self hg))).sub
+    (tendsto_realPWPolarDiagonalMass hYL (ha.trans hg.1))).sub
+    ((((continuous_realPWBandDiagonalMass_left g).tendsto c).comp hYh).sub
+      (((continuous_realPWPolarDiagonalMass_left g).tendsto c).comp hYh))
+
+/-- A floor with `Y * h → 0` does not change the limit. -/
+theorem tendsto_integral_realPWLevelDiagonal_floor_zero (ha : 0 < a) (hab : a ≤ b)
+    (h1 : 1 ∉ Icc a b) (hw : IntervalIntegrable w volume a b)
+    (hYL : Tendsto (fun i ↦ Y i * L i) l atTop) (hYh : Tendsto (fun i ↦ Y i * h i) l (𝓝 0)) :
+    Tendsto (fun i ↦ ∫ g in a..b, w g * ∫ x in (h i)..(L i), realPWLevelDiagonal (Y i) g x) l
+      (𝓝 (∫ g in a..b, w g * ((2 * |1 / g - 1|)⁻¹ + (2 * (1 / g + 1))⁻¹ - min 1 g))) := by
+  have h := tendsto_integral_realPWLevelDiagonal_floor ha hab h1 hw hYL hYh
+  simpa only [realPWBandDiagonalMass_zero, realPWPolarDiagonalMass_zero, sub_zero] using h
+
+/-- A floor with `Y * h → ∞` removes the whole limit: the integrals tend to zero. -/
+theorem tendsto_integral_realPWLevelDiagonal_floor_atTop (ha : 0 < a) (hab : a ≤ b)
+    (h1 : 1 ∉ Icc a b) (hw : IntervalIntegrable w volume a b)
+    (hYL : Tendsto (fun i ↦ Y i * L i) l atTop) (hYh : Tendsto (fun i ↦ Y i * h i) l atTop) :
+    Tendsto (fun i ↦ ∫ g in a..b, w g * ∫ x in (h i)..(L i), realPWLevelDiagonal (Y i) g x) l
+      (𝓝 0) := by
+  refine Tendsto.congr' (eventually_integral_floor_eq ha hab h1 hYL) ?_
+  have hK := (continuousOn_bandBound ha hab h1 π (π / 2 + 2) pi_ne_zero).add
+    (continuousOn_polarBound ha hab)
+  have hlim : ∀ g ∈ Ι a b, Tendsto (fun i ↦
+      (realPWBandDiagonalMass (Y i * L i) g - realPWPolarDiagonalMass (Y i * L i) g) -
+        (realPWBandDiagonalMass (Y i * h i) g - realPWPolarDiagonalMass (Y i * h i) g)) l
+      (𝓝 ((fun _ : ℝ ↦ (0 : ℝ)) g)) := fun g hg ↦ by
+    rw [uIoc_of_le hab] at hg
+    have hg1 := ne_one_of_mem_Icc h1 (Ioc_subset_Icc_self hg)
+    have t := ((tendsto_realPWBandDiagonalMass hYL (ha.trans hg.1) hg1).sub
+      (tendsto_realPWPolarDiagonalMass hYL (ha.trans hg.1))).sub
+      ((tendsto_realPWBandDiagonalMass hYh (ha.trans hg.1) hg1).sub
+        (tendsto_realPWPolarDiagonalMass hYh (ha.trans hg.1)))
+    rwa [sub_self] at t
+  have key := tendsto_intervalIntegral_mul_of_abs_le hw (hK.add hK)
+    (Eventually.of_forall fun i ↦ ((measurable_realPWBandDiagonalMass _).sub
+      (measurable_realPWPolarDiagonalMass _)).sub ((measurable_realPWBandDiagonalMass _).sub
+      (measurable_realPWPolarDiagonalMass _)))
+    (Eventually.of_forall fun i g _ ↦ (abs_sub _ _).trans (add_le_add
+      ((abs_sub _ _).trans (add_le_add (abs_realPWBandDiagonalMass_le _ _)
+        (abs_realPWPolarDiagonalMass_le _ g)))
+      ((abs_sub _ _).trans (add_le_add (abs_realPWBandDiagonalMass_le _ _)
+        (abs_realPWPolarDiagonalMass_le _ g)))))
+    hlim
+  simpa only [mul_zero, intervalIntegral.integral_zero, Pi.sub_apply] using key
+
+end Floor
+
 /-! ### The diagonal integral in the other order -/
 
 section Swap
@@ -564,40 +751,42 @@ section Swap
 variable {a b : ℝ} {w : ℝ → ℝ}
 
 private theorem integral_integral_mul_swap {d : ℝ → ℝ → ℝ} (hab : a ≤ b)
-    (hw : ContinuousOn w (Icc a b)) (L : ℝ)
-    (hd : ContinuousOn (fun p : ℝ × ℝ ↦ d p.2 p.1) (uIcc 0 L ×ˢ uIcc a b)) :
-    ∫ x in (0 : ℝ)..L, ∫ g in a..b, w g * d g x =
-      ∫ g in a..b, w g * ∫ x in (0 : ℝ)..L, d g x := by
-  have hw' : ContinuousOn (fun p : ℝ × ℝ ↦ w p.2) (uIcc 0 L ×ˢ uIcc a b) :=
+    (hw : ContinuousOn w (Icc a b)) (h L : ℝ)
+    (hd : ContinuousOn (fun p : ℝ × ℝ ↦ d p.2 p.1) (uIcc h L ×ˢ uIcc a b)) :
+    ∫ x in h..L, ∫ g in a..b, w g * d g x =
+      ∫ g in a..b, w g * ∫ x in h..L, d g x := by
+  have hw' : ContinuousOn (fun p : ℝ × ℝ ↦ w p.2) (uIcc h L ×ˢ uIcc a b) :=
     hw.comp continuousOn_snd fun p hp ↦ by
       rw [← uIcc_of_le hab]
       exact hp.2
   have hcont : ContinuousOn (Function.uncurry fun x g : ℝ ↦ w g * d g x)
-      (uIcc 0 L ×ˢ uIcc a b) := hw'.mul hd
+      (uIcc h L ×ˢ uIcc a b) := hw'.mul hd
   rw [MeasureTheory.intervalIntegral_intervalIntegral_swap
     ((hcont.integrableOn_compact (isCompact_uIcc.prod isCompact_uIcc)).mono_set
       (prod_mono uIoc_subset_uIcc uIoc_subset_uIcc))]
   refine intervalIntegral.integral_congr fun g _ ↦ ?_
   exact intervalIntegral.integral_const_mul _ _
 
-private theorem continuousOn_div_prod (ha : 0 < a) (hab : a ≤ b) (L : ℝ) :
-    ContinuousOn (fun p : ℝ × ℝ ↦ p.1 / p.2) (uIcc 0 L ×ˢ uIcc a b) :=
+private theorem continuousOn_div_prod (ha : 0 < a) (hab : a ≤ b) (h L : ℝ) :
+    ContinuousOn (fun p : ℝ × ℝ ↦ p.1 / p.2) (uIcc h L ×ˢ uIcc a b) :=
   continuousOn_fst.div continuousOn_snd fun p hp ↦ by
     have h := hp.2
     rw [uIcc_of_le hab] at h
     exact (ha.trans_le h.1).ne'
 
-private theorem continuousOn_realPWBandDiagonal_prod (ha : 0 < a) (hab : a ≤ b) (Y L : ℝ) :
-    ContinuousOn (fun p : ℝ × ℝ ↦ realPWBandDiagonal Y p.2 p.1) (uIcc 0 L ×ˢ uIcc a b) := by
-  have hq := continuousOn_div_prod ha hab L
+private theorem continuousOn_realPWBandDiagonal_prod (ha : 0 < a) (hab : a ≤ b)
+    (Y h L : ℝ) :
+    ContinuousOn (fun p : ℝ × ℝ ↦ realPWBandDiagonal Y p.2 p.1) (uIcc h L ×ˢ uIcc a b) := by
+  have hq := continuousOn_div_prod ha hab h L
   have hS := continuous_realBandKernel Y
   unfold realPWBandDiagonal
   exact (hS.comp_continuousOn (hq.sub continuousOn_fst)).add
     (hS.comp_continuousOn (hq.add continuousOn_fst))
 
-private theorem continuousOn_realPWPolarDiagonal_prod (ha : 0 < a) (hab : a ≤ b) (Y L : ℝ) :
-    ContinuousOn (fun p : ℝ × ℝ ↦ realPWPolarDiagonal Y p.2 p.1) (uIcc 0 L ×ˢ uIcc a b) := by
-  have hq := continuousOn_div_prod ha hab L
+private theorem continuousOn_realPWPolarDiagonal_prod (ha : 0 < a) (hab : a ≤ b)
+    (Y h L : ℝ) :
+    ContinuousOn (fun p : ℝ × ℝ ↦ realPWPolarDiagonal Y p.2 p.1) (uIcc h L ×ˢ uIcc a b) := by
+  have hq := continuousOn_div_prod ha hab h L
   have hS := continuous_realBandKernel Y
   unfold realPWPolarDiagonal
   exact ((hS.comp_continuousOn hq).mul (hS.comp_continuousOn continuousOn_fst)).div_const Y
@@ -607,17 +796,24 @@ theorem integral_integral_realPWBandDiagonal_swap (ha : 0 < a) (hab : a ≤ b)
     (hw : ContinuousOn w (Icc a b)) (Y L : ℝ) :
     ∫ x in (0 : ℝ)..L, ∫ g in a..b, w g * realPWBandDiagonal Y g x =
       ∫ g in a..b, w g * ∫ x in (0 : ℝ)..L, realPWBandDiagonal Y g x :=
-  integral_integral_mul_swap hab hw L (continuousOn_realPWBandDiagonal_prod ha hab Y L)
+  integral_integral_mul_swap hab hw 0 L (continuousOn_realPWBandDiagonal_prod ha hab Y 0 L)
+
+/-- The two orders of integration of the weighted level diagonal agree, over `[h, L]`. -/
+theorem integral_integral_realPWLevelDiagonal_swap_floor (ha : 0 < a) (hab : a ≤ b)
+    (hw : ContinuousOn w (Icc a b)) (Y h L : ℝ) :
+    ∫ x in h..L, ∫ g in a..b, w g * realPWLevelDiagonal Y g x =
+      ∫ g in a..b, w g * ∫ x in h..L, realPWLevelDiagonal Y g x := by
+  refine integral_integral_mul_swap hab hw h L ?_
+  unfold realPWLevelDiagonal
+  exact (continuousOn_realPWBandDiagonal_prod ha hab Y h L).sub
+    (continuousOn_realPWPolarDiagonal_prod ha hab Y h L)
 
 /-- The two orders of integration of the weighted level diagonal agree. -/
 theorem integral_integral_realPWLevelDiagonal_swap (ha : 0 < a) (hab : a ≤ b)
     (hw : ContinuousOn w (Icc a b)) (Y L : ℝ) :
     ∫ x in (0 : ℝ)..L, ∫ g in a..b, w g * realPWLevelDiagonal Y g x =
-      ∫ g in a..b, w g * ∫ x in (0 : ℝ)..L, realPWLevelDiagonal Y g x := by
-  refine integral_integral_mul_swap hab hw L ?_
-  unfold realPWLevelDiagonal
-  exact (continuousOn_realPWBandDiagonal_prod ha hab Y L).sub
-    (continuousOn_realPWPolarDiagonal_prod ha hab Y L)
+      ∫ g in a..b, w g * ∫ x in (0 : ℝ)..L, realPWLevelDiagonal Y g x :=
+  integral_integral_realPWLevelDiagonal_swap_floor ha hab hw Y 0 L
 
 end Swap
 
@@ -784,6 +980,38 @@ theorem sLocalTrace_realPWLevel_diagonal_tendsto_of_one_lt (ha : 1 < a) (hab : a
     have hle : (√g)⁻¹ ≤ √g := (inv_le_one_of_one_le₀ hs1).trans hs1
     simp only [min_eq_right hle]
   rwa [e1, e2] at h
+
+/-- Paper: Theorem 12.4.1.1, p. 514, footnote 2, with Definition 9.3.3.1. In the model, with
+the sharp spatial cutoff `1_[h, L]` and `Y * h → 0`, the diagonal integrals on the level have
+the same limit as without a floor. -/
+theorem sLocalTrace_realPWLevel_diagonal_floor_tendsto (ha : 0 < a) (hab : a ≤ b)
+    (h1 : 1 ∉ Icc a b) (hφ : ContinuousOn φ (Icc a b)) {h : ι → ℝ}
+    (hYL : Tendsto (fun i ↦ Y i * L i) l atTop) (hYh : Tendsto (fun i ↦ Y i * h i) l (𝓝 0)) :
+    Tendsto (fun i ↦ ∫ x in (h i)..(L i), ∫ g in a..b,
+        φ g * ((√g)⁻¹ * realPWLevelDiagonal (Y i) g x) / g) l
+      (𝓝 ((∫ g in a..b, φ g * (1 / 2 * (√g / |1 - g| + √g / |1 + g|)) / g) -
+        ∫ g in a..b, φ g * min (√g) (√g)⁻¹ / g)) := by
+  rw [← integral_weight_level ha hab h1 hφ]
+  refine (tendsto_integral_realPWLevelDiagonal_floor_zero ha hab h1
+    (intervalIntegrable_weight ha hab hφ) hYL hYh).congr fun i ↦ ?_
+  rw [← integral_integral_realPWLevelDiagonal_swap_floor ha hab (continuousOn_weight ha hφ)]
+  refine intervalIntegral.integral_congr fun x _ ↦ intervalIntegral.integral_congr fun g _ ↦ ?_
+  ring
+
+/-- Paper: Theorem 12.4.1.1, p. 514, footnote 2, with Definition 9.3.3.1. In the model, with
+the sharp spatial cutoff `1_[h, L]` and `Y * h → ∞`, the diagonal integrals on the level tend
+to zero, whatever the test function supported away from norm one. So a floor that is not small
+against the band scale `1 / Y` loses the whole limit, the real-place term included. -/
+theorem sLocalTrace_realPWLevel_diagonal_floor_tendsto_zero (ha : 0 < a) (hab : a ≤ b)
+    (h1 : 1 ∉ Icc a b) (hφ : ContinuousOn φ (Icc a b)) {h : ι → ℝ}
+    (hYL : Tendsto (fun i ↦ Y i * L i) l atTop) (hYh : Tendsto (fun i ↦ Y i * h i) l atTop) :
+    Tendsto (fun i ↦ ∫ x in (h i)..(L i), ∫ g in a..b,
+        φ g * ((√g)⁻¹ * realPWLevelDiagonal (Y i) g x) / g) l (𝓝 0) := by
+  refine (tendsto_integral_realPWLevelDiagonal_floor_atTop ha hab h1
+    (intervalIntegrable_weight ha hab hφ) hYL hYh).congr fun i ↦ ?_
+  rw [← integral_integral_realPWLevelDiagonal_swap_floor ha hab (continuousOn_weight ha hφ)]
+  refine intervalIntegral.integral_congr fun x _ ↦ intervalIntegral.integral_congr fun g _ ↦ ?_
+  ring
 
 end Paper
 
