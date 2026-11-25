@@ -69,6 +69,11 @@ theorem continuous_halfShift (u : LogL2) : Continuous fun h ↦ halfShift h u :=
 def stagePeriodDifference (p : ℝ) : LogL2 →L[ℂ] LogL2 :=
   halfShift (Real.log p) - ContinuousLinearMap.id ℂ LogL2
 
+/-- Pointwise evaluation of the period difference. -/
+theorem stagePeriodDifference_apply (p : ℝ) (u : LogL2) :
+    stagePeriodDifference p u = halfShift (Real.log p) u - u := by
+  simp only [stagePeriodDifference, sub_apply, ContinuousLinearMap.id_apply]
+
 private theorem stagePeriodDifference_ae (T : Finset ℕ) {p : ℕ}
     (hp : 0 < p) (hmem : p ∉ T) {F : LogL2} {f : 𝓢(ℝ, ℂ)}
     (hF : (F : ℝ → ℂ) =ᵐ[volume] stage T f) :
