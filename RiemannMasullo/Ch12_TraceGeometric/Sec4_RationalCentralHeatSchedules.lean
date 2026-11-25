@@ -172,7 +172,7 @@ theorem exists_quotientBruhatLevel_haarDiagonal_heatSchedules_sub_tendsto_two_of
         (∫ q : J, quotientLogHaarHeatKernel (2 / ((n : ℝ≥0) + 1)) T q q ∂μ) -
         (∫ q : J, quotientLogHaarHeatKernel (1 / ((n : ℝ≥0) + 1)) T q q ∂μ))
         atTop (𝓝 (2 : ℂ)) := by
-  obtain ⟨ψ, hψ, hlim⟩ := exists_bruhatTest_haarDiagonal_centralFinitePart
+  obtain ⟨ψ, hψ, hlim⟩ := exists_bruhatTest_haarDiagonal_centralFinitePart.{0}
     (δ := (1/2 : ℝ)) (by norm_num) (by norm_num) vanishingWeight_smooth
       vanishingWeight_supported
   have hf : Tendsto floorRadius atTop (𝓝 0) := tendsto_inv_atTop_zero.comp natScale
@@ -188,13 +188,15 @@ theorem exists_quotientBruhatLevel_haarDiagonal_heatSchedules_sub_tendsto_two_of
       simp only [heatTime, NNReal.coe_div, NNReal.coe_add, NNReal.coe_natCast, NNReal.coe_one,
         one_mul, outerRadius, Real.log_exp]
       exact div_mul_cancel₀ _ (by positivity)
-    have hl := hlim (l := atTop) (B := fun _ : ℕ ↦ (1 : ℝ)) (L := outerRadius)
+    have hl := hlim (ι := ℕ) (l := atTop) (B := fun _ : ℕ ↦ (1 : ℝ)) (L := outerRadius)
       (h := floorRadius) (τ := heatTime k) (κ := (k : ℝ)) (fun _ ↦ zero_lt_one)
       (fun n ↦ Real.exp_pos _) (.of_forall hbox) (by simpa using hL)
       (by simpa using hf) (heat_time_zero k) (by simp only [hs]; exact tendsto_const_nhds)
       (.of_forall fun n ↦ div_pos hk (by positivity))
-    simpa only [diagonal, vanishingWeight_jet.1, vanishingWeight_jet.2,
-      Complex.ofReal_zero, zero_mul, sub_zero] using hl
+    change Tendsto (fun n ↦ ∫ q : J, quotientLogHaarHeatKernel (heatTime k n)
+      (quotientBruhatLevelCompression 1 (floorRadius n) (outerRadius n) ψ) q q ∂μ) atTop _
+    simpa only [vanishingWeight_jet.1, vanishingWeight_jet.2, Complex.ofReal_zero,
+      zero_mul, sub_zero] using hl
   refine ⟨ψ, fun q hq ↦ ?_, ?_⟩
   · rw [hψ q, hq, vanishingWeight_jet.1, Complex.ofReal_zero]
   · change Tendsto (fun n ↦ diagonal ψ 2 n - diagonal ψ 1 n) atTop (𝓝 (2 : ℂ))
