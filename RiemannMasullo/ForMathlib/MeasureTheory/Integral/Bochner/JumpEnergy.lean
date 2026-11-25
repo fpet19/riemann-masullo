@@ -110,12 +110,13 @@ theorem jumpPairing_mul_self_eq_of_orthogonal (μ : Measure X) (ν : Measure (X 
 def temperedJumpPairMeasure (s : ℝ) : Measure (ℝ × ℝ) :=
   ((temperedJumpMeasure s).prod volume).map (fun hx : ℝ × ℝ ↦ (hx.2 + hx.1, hx.2))
 
-private theorem lintegral_norm_sq_temperedJumpPair (s : ℝ) (f : 𝓢(ℝ, ℂ)) :
+private theorem lintegral_norm_sq_temperedJumpPair (s : ℝ)
+    (f : ℝ → ℂ) (hf : Measurable f) :
     (∫⁻ z, ENNReal.ofReal (‖f z.1 - f z.2‖ ^ 2) ∂temperedJumpPairMeasure s) =
       ∫⁻ h, (∫⁻ x, ENNReal.ofReal (‖f (x + h) - f x‖ ^ 2)) ∂temperedJumpMeasure s := by
   have hm : Measurable (fun z : ℝ × ℝ ↦ ENNReal.ofReal (‖f z.1 - f z.2‖ ^ 2)) :=
-    ENNReal.measurable_ofReal.comp (by fun_prop : Continuous (fun z : ℝ × ℝ ↦
-      ‖f z.1 - f z.2‖ ^ 2)).measurable
+    ENNReal.measurable_ofReal.comp (((hf.comp measurable_fst).sub
+      (hf.comp measurable_snd)).norm.pow_const 2)
   have hmap : Measurable (fun hx : ℝ × ℝ ↦ (hx.2 + hx.1, hx.2)) := by fun_prop
   unfold temperedJumpPairMeasure
   rw [lintegral_map hm hmap]
@@ -147,35 +148,37 @@ private theorem integrable_schwartz_fractional_weight (g : 𝓢(ℝ, ℂ))
 private theorem re_conj_mul_self_eq_norm_sq (z : ℂ) : (conj z * z).re = ‖z‖ ^ 2 := by
   simp [Complex.mul_re, Complex.normSq_apply, Complex.sq_norm]
 
-/-- The abstract jump pairing agrees on Schwartz functions with the squared
-fractional Sobolev norm built from the Fourier weight. -/
-theorem jumpPairing_tempered_self_eq_fourier (f : 𝓢(ℝ, ℂ)) {s : ℝ}
-    (hs : 0 < s) (hs' : s < 1) :
+private theorem jumpPairing_tempered_self_eq_of_lintegral
+    (f g : ℝ → ℂ) (s : ℝ) (hf : Measurable f)
+    (hf2 : Integrable (fun x ↦ ‖f x‖ ^ 2))
+    (hg : Integrable (fun ξ ↦ (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖g ξ‖ ^ 2))
+    (he : (∫⁻ x, ENNReal.ofReal (‖f x‖ ^ 2)) + (2 : ℝ≥0∞)⁻¹ *
+        (∫⁻ h, (∫⁻ x, ENNReal.ofReal (‖f (x + h) - f x‖ ^ 2)) ∂temperedJumpMeasure s) =
+      ∫⁻ ξ, ENNReal.ofReal ((1 + (2 * Real.pi * ξ) ^ 2) ^ s) *
+        ENNReal.ofReal (‖g ξ‖ ^ 2)) :
     jumpPairing volume (temperedJumpPairMeasure s) f f =
-      ∫ ξ, (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖𝓕 f ξ‖ ^ 2 := by
-  let g (ξ : ℝ) := (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖𝓕 f ξ‖ ^ 2
+      ∫ ξ, (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖g ξ‖ ^ 2 := by
+  let w (ξ : ℝ) := (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖g ξ‖ ^ 2
   let j (z : ℝ × ℝ) := ‖f z.1 - f z.2‖ ^ 2
-  have hg : Integrable g := integrable_schwartz_fractional_weight (𝓕 f) hs.le hs'.le
-  have hg0 : ∀ ξ, 0 ≤ g ξ := fun _ ↦ by dsimp [g]; positivity
+  have hg0 : ∀ ξ, 0 ≤ w ξ := fun _ ↦ by dsimp [w]; positivity
   have hj0 : ∀ z, 0 ≤ j z := fun _ ↦ sq_nonneg _
-  have hf : Integrable (fun x ↦ ‖f x‖ ^ 2) := by
-    simpa using (f.memLp (2 : ℝ≥0∞) volume).integrable_norm_rpow (by norm_num) (by simp)
-  have he := schwartz_fractional_energy_eq_tempered_jump f hs hs'
   have heF (ξ : ℝ) : ENNReal.ofReal ((1 + (2 * Real.pi * ξ) ^ 2) ^ s) *
-      ENNReal.ofReal (‖𝓕 f ξ‖ ^ 2) = ENNReal.ofReal (g ξ) :=
+      ENNReal.ofReal (‖g ξ‖ ^ 2) = ENNReal.ofReal (w ξ) :=
     (ENNReal.ofReal_mul (by positivity : 0 ≤ (1 + (2 * Real.pi * ξ) ^ 2) ^ s)).symm
   simp_rw [heF] at he
-  rw [← lintegral_norm_sq_temperedJumpPair s f,
+  rw [← lintegral_norm_sq_temperedJumpPair s f hf,
     ← ofReal_integral_eq_lintegral_ofReal hg (ae_of_all _ hg0)] at he
   have hjfinite : (∫⁻ z, ENNReal.ofReal (j z) ∂temperedJumpPairMeasure s) ≠ ⊤ := by
     intro htop
     rw [htop, ENNReal.mul_top (by simp), add_top] at he
     exact ENNReal.ofReal_ne_top he.symm
   have hj : Integrable j (temperedJumpPairMeasure s) := by
-    refine ⟨(by dsimp [j]; fun_prop : Continuous j).aestronglyMeasurable, ?_⟩
+    have hjm : Measurable j := ((hf.comp measurable_fst).sub
+      (hf.comp measurable_snd)).norm.pow_const 2
+    refine ⟨hjm.aestronglyMeasurable, ?_⟩
     rw [hasFiniteIntegral_iff_ofReal (ae_of_all _ hj0)]
     exact lt_top_iff_ne_top.mpr hjfinite
-  rw [← ofReal_integral_eq_lintegral_ofReal hf (ae_of_all _ fun _ ↦ sq_nonneg _),
+  rw [← ofReal_integral_eq_lintegral_ofReal hf2 (ae_of_all _ fun _ ↦ sq_nonneg _),
     ← ofReal_integral_eq_lintegral_ofReal hj (ae_of_all _ hj0)] at he
   have hhalf : (2 : ℝ≥0∞)⁻¹ = ENNReal.ofReal (1 / 2 : ℝ) := by
     rw [ENNReal.ofReal_div_of_pos zero_lt_two, ENNReal.ofReal_one, ENNReal.ofReal_ofNat, one_div]
@@ -186,5 +189,30 @@ theorem jumpPairing_tempered_self_eq_fourier (f : 𝓢(ℝ, ℂ)) {s : ℝ}
   have hm0 : 0 ≤ ∫ x, ‖f x‖ ^ 2 := integral_nonneg fun _ ↦ sq_nonneg _
   have hj0' : 0 ≤ ∫ z, j z ∂temperedJumpPairMeasure s := integral_nonneg hj0
   exact (ENNReal.ofReal_eq_ofReal_iff (by positivity) (integral_nonneg hg0)).mp he
+
+/-- The abstract jump pairing agrees on Schwartz functions with the squared
+fractional Sobolev norm built from the Fourier weight. -/
+theorem jumpPairing_tempered_self_eq_fourier (f : 𝓢(ℝ, ℂ)) {s : ℝ}
+    (hs : 0 < s) (hs' : s < 1) :
+    jumpPairing volume (temperedJumpPairMeasure s) f f =
+      ∫ ξ, (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖𝓕 f ξ‖ ^ 2 := by
+  have hf2 : Integrable (fun x ↦ ‖f x‖ ^ 2) := by
+    simpa using (f.memLp (2 : ℝ≥0∞) volume).integrable_norm_rpow (by norm_num) (by simp)
+  exact jumpPairing_tempered_self_eq_of_lintegral f (𝓕 f : 𝓢(ℝ, ℂ)) s
+    f.continuous.measurable hf2 (integrable_schwartz_fractional_weight (𝓕 f) hs.le hs'.le)
+    (schwartz_fractional_energy_eq_tempered_jump f hs hs')
+
+/-- On the fractional Sobolev domain in logarithmic L², the real-valued jump pairing
+agrees with the squared Fourier Sobolev norm. -/
+theorem lineL2_jumpPairing_tempered_self_eq_fourier
+    (f : Lp ℂ 2 (volume : Measure ℝ)) {s : ℝ} (hs : 0 < s) (hs' : s < 1)
+    (henergy : Integrable (fun ξ ↦ (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖(𝓕 f) ξ‖ ^ 2)) :
+    jumpPairing volume (temperedJumpPairMeasure s) f f =
+      ∫ ξ, (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖(𝓕 f) ξ‖ ^ 2 := by
+  have hf2 : Integrable (fun x ↦ ‖f x‖ ^ 2) := by
+    simpa using (Lp.memLp f).integrable_norm_rpow (by norm_num) (by simp)
+  exact jumpPairing_tempered_self_eq_of_lintegral f (𝓕 f : Lp ℂ 2 (volume : Measure ℝ)) s
+    (Lp.stronglyMeasurable f).measurable hf2 henergy
+    (lineL2_fractional_energy_eq_tempered_jump f hs hs')
 
 end RiemannMasullo

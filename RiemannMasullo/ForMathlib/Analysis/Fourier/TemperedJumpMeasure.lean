@@ -139,6 +139,18 @@ theorem schwartz_fractional_energy_eq_tempered_jump (f : 𝓢(ℝ, ℂ)) {s : �
   exact schwartz_fractional_energy_eq_of_jump_symbol f s hs.le (temperedJumpMeasure s)
     (temperedJumpMeasure_symbol hs hs')
 
+/-- The tempered jump energy equals the fractional Fourier energy on logarithmic L².
+The equality includes the case of infinite energy. -/
+theorem lineL2_fractional_energy_eq_tempered_jump (f : Lp ℂ 2 (volume : Measure ℝ)) {s : ℝ}
+    (hs : 0 < s) (hs' : s < 1) :
+    (∫⁻ x, ENNReal.ofReal (‖f x‖ ^ 2)) + (2 : ℝ≥0∞)⁻¹ *
+        (∫⁻ h, (∫⁻ x, ENNReal.ofReal (‖f (x + h) - f x‖ ^ 2)) ∂temperedJumpMeasure s) =
+      ∫⁻ ξ, ENNReal.ofReal ((1 + (2 * Real.pi * ξ) ^ 2) ^ s) *
+        ENNReal.ofReal (‖(𝓕 f) ξ‖ ^ 2) := by
+  let _ := sFinite_temperedJumpMeasure s
+  exact lineL2_fractional_energy_eq_of_jump_symbol f s hs.le (temperedJumpMeasure s)
+    (temperedJumpMeasure_symbol hs hs')
+
 private theorem gaussian_secondMoment_lintegral {u : ℝ} (hu : 0 < u) :
     (∫⁻ y, ENNReal.ofReal ((heatDisplacement (u, y)) ^ 2) ∂gaussianReal 0 1) =
       ENNReal.ofReal (2 * u) := by
