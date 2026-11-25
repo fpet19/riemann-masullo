@@ -2,6 +2,7 @@ module
 
 public import Mathlib.Analysis.Complex.Basic
 public import Mathlib.MeasureTheory.Integral.Bochner.Basic
+public import RiemannMasullo.ForMathlib.Analysis.Fourier.TemperedJumpMeasure
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
 
@@ -16,7 +17,7 @@ is arbitrary, so the proofs do not depend on a construction of the Bessel kernel
 public noncomputable section
 
 open MeasureTheory
-open scoped ComplexConjugate
+open scoped ComplexConjugate ENNReal FourierTransform SchwartzMap
 
 namespace RiemannMasullo
 
@@ -104,5 +105,86 @@ theorem jumpPairing_mul_self_eq_of_orthogonal (μ : Measure X) (ν : Measure (X 
     exact integral_congr_ae (ae_of_all _ fun p ↦ jumpPairing_mul_identity (h p.1) (h p.2) (b p.1) (b p.2))
   dsimp only at horth ⊢
   linarith only [horth, hj]
+
+/-- The displacement measure on ordered pairs of spatial arguments. -/
+def temperedJumpPairMeasure (s : ℝ) : Measure (ℝ × ℝ) :=
+  ((temperedJumpMeasure s).prod volume).map (fun hx : ℝ × ℝ ↦ (hx.2 + hx.1, hx.2))
+
+private theorem lintegral_norm_sq_temperedJumpPair (s : ℝ) (f : 𝓢(ℝ, ℂ)) :
+    (∫⁻ z, ENNReal.ofReal (‖f z.1 - f z.2‖ ^ 2) ∂temperedJumpPairMeasure s) =
+      ∫⁻ h, (∫⁻ x, ENNReal.ofReal (‖f (x + h) - f x‖ ^ 2)) ∂temperedJumpMeasure s := by
+  have hm : Measurable (fun z : ℝ × ℝ ↦ ENNReal.ofReal (‖f z.1 - f z.2‖ ^ 2)) :=
+    ENNReal.measurable_ofReal.comp (by fun_prop : Continuous (fun z : ℝ × ℝ ↦
+      ‖f z.1 - f z.2‖ ^ 2)).measurable
+  have hmap : Measurable (fun hx : ℝ × ℝ ↦ (hx.2 + hx.1, hx.2)) := by fun_prop
+  unfold temperedJumpPairMeasure
+  rw [lintegral_map hm hmap]
+  exact lintegral_prod _ (hm.comp hmap).aemeasurable
+
+private theorem integrable_schwartz_fractional_weight (g : 𝓢(ℝ, ℂ))
+    {s : ℝ} (hs : 0 ≤ s) (hs' : s ≤ 1) :
+    Integrable (fun ξ : ℝ ↦ (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖g ξ‖ ^ 2) := by
+  let C := SchwartzMap.seminorm ℝ 0 0 g
+  have hC (ξ : ℝ) : ‖g ξ‖ ≤ C := by
+    simpa [C] using SchwartzMap.le_seminorm ℝ 0 0 g ξ
+  have h2 : Integrable (fun ξ : ℝ ↦ ξ ^ 2 * ‖g ξ‖) := by
+    simpa [Real.norm_eq_abs, sq_abs] using g.integrable_pow_mul volume 2
+  have hdom : Integrable (fun ξ : ℝ ↦ (1 + (2 * Real.pi * ξ) ^ 2) * ‖g ξ‖ * C) := by
+    refine ((g.integrable.norm.add (h2.const_mul ((2 * Real.pi) ^ 2))).mul_const C).congr ?_
+    exact ae_of_all _ fun ξ ↦ by simp only [Pi.add_apply]; ring
+  have hc : Continuous (fun ξ : ℝ ↦ (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖g ξ‖ ^ 2) := by
+    fun_prop
+  refine hdom.mono' hc.aestronglyMeasurable (ae_of_all _ fun ξ ↦ ?_)
+  have hw : 1 ≤ 1 + (2 * Real.pi * ξ) ^ 2 := le_add_of_nonneg_right (sq_nonneg _)
+  rw [Real.norm_of_nonneg (by positivity)]
+  calc
+    _ ≤ (1 + (2 * Real.pi * ξ) ^ 2) * ‖g ξ‖ ^ 2 :=
+      mul_le_mul_of_nonneg_right (Real.rpow_le_self_of_one_le hw hs') (sq_nonneg _)
+    _ = ((1 + (2 * Real.pi * ξ) ^ 2) * ‖g ξ‖) * ‖g ξ‖ := by
+      rw [pow_two ‖g ξ‖, ← mul_assoc]
+    _ ≤ _ := mul_le_mul_of_nonneg_left (hC ξ) (by positivity)
+
+private theorem re_conj_mul_self_eq_norm_sq (z : ℂ) : (conj z * z).re = ‖z‖ ^ 2 := by
+  simp [Complex.mul_re, Complex.normSq_apply, Complex.sq_norm]
+
+/-- The abstract jump pairing agrees on Schwartz functions with the squared
+fractional Sobolev norm built from the Fourier weight. -/
+theorem jumpPairing_tempered_self_eq_fourier (f : 𝓢(ℝ, ℂ)) {s : ℝ}
+    (hs : 0 < s) (hs' : s < 1) :
+    jumpPairing volume (temperedJumpPairMeasure s) f f =
+      ∫ ξ, (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖𝓕 f ξ‖ ^ 2 := by
+  let g (ξ : ℝ) := (1 + (2 * Real.pi * ξ) ^ 2) ^ s * ‖𝓕 f ξ‖ ^ 2
+  let j (z : ℝ × ℝ) := ‖f z.1 - f z.2‖ ^ 2
+  have hg : Integrable g := integrable_schwartz_fractional_weight (𝓕 f) hs.le hs'.le
+  have hg0 : ∀ ξ, 0 ≤ g ξ := fun _ ↦ by dsimp [g]; positivity
+  have hj0 : ∀ z, 0 ≤ j z := fun _ ↦ sq_nonneg _
+  have hf : Integrable (fun x ↦ ‖f x‖ ^ 2) := by
+    simpa using (f.memLp (2 : ℝ≥0∞) volume).integrable_norm_rpow (by norm_num) (by simp)
+  have he := schwartz_fractional_energy_eq_tempered_jump f hs hs'
+  have heF (ξ : ℝ) : ENNReal.ofReal ((1 + (2 * Real.pi * ξ) ^ 2) ^ s) *
+      ENNReal.ofReal (‖𝓕 f ξ‖ ^ 2) = ENNReal.ofReal (g ξ) :=
+    (ENNReal.ofReal_mul (by positivity : 0 ≤ (1 + (2 * Real.pi * ξ) ^ 2) ^ s)).symm
+  simp_rw [heF] at he
+  rw [← lintegral_norm_sq_temperedJumpPair s f,
+    ← ofReal_integral_eq_lintegral_ofReal hg (ae_of_all _ hg0)] at he
+  have hjfinite : (∫⁻ z, ENNReal.ofReal (j z) ∂temperedJumpPairMeasure s) ≠ ⊤ := by
+    intro htop
+    rw [htop, ENNReal.mul_top (by simp), add_top] at he
+    exact ENNReal.ofReal_ne_top he.symm
+  have hj : Integrable j (temperedJumpPairMeasure s) := by
+    refine ⟨(by dsimp [j]; fun_prop : Continuous j).aestronglyMeasurable, ?_⟩
+    rw [hasFiniteIntegral_iff_ofReal (ae_of_all _ hj0)]
+    exact lt_top_iff_ne_top.mpr hjfinite
+  rw [← ofReal_integral_eq_lintegral_ofReal hf (ae_of_all _ fun _ ↦ sq_nonneg _),
+    ← ofReal_integral_eq_lintegral_ofReal hj (ae_of_all _ hj0)] at he
+  have hhalf : (2 : ℝ≥0∞)⁻¹ = ENNReal.ofReal (1 / 2 : ℝ) := by
+    rw [ENNReal.ofReal_div_of_pos zero_lt_two, ENNReal.ofReal_one, ENNReal.ofReal_ofNat, one_div]
+  rw [hhalf, ← ENNReal.ofReal_mul (by norm_num : (0 : ℝ) ≤ 1 / 2),
+    ← ENNReal.ofReal_add (integral_nonneg fun _ ↦ sq_nonneg _) (by positivity)] at he
+  unfold jumpPairing
+  simp_rw [re_conj_mul_self_eq_norm_sq]
+  have hm0 : 0 ≤ ∫ x, ‖f x‖ ^ 2 := integral_nonneg fun _ ↦ sq_nonneg _
+  have hj0' : 0 ≤ ∫ z, j z ∂temperedJumpPairMeasure s := integral_nonneg hj0
+  exact (ENNReal.ofReal_eq_ofReal_iff (by positivity) (integral_nonneg hg0)).mp he
 
 end RiemannMasullo
