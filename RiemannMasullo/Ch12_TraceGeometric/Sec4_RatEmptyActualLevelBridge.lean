@@ -33,9 +33,18 @@ local notation "ray" => volume.restrict (Ioi (0 : ℝ))
 local notation "k" => (((Real.sqrt 2)⁻¹ : ℝ) : ℂ)
 
 /-- The Haar half-density removes the twist before the normalized even extension. -/
-def rayChart : W ≃ₗᵢ[ℂ] Lp ℂ 2 ray := haarAmbient.symm.trans halfDensity
+@[expose] def rayChart : W ≃ₗᵢ[ℂ] Lp ℂ 2 ray := haarAmbient.symm.trans halfDensity
 
-def embedding : W →ₗᵢ[ℂ] H := positiveRayEvenExtension.comp rayChart.toLinearIsometry
+/-- The normalized positive-ray even extension of the actual Haar chart. -/
+@[expose] def embedding : W →ₗᵢ[ℂ] H := positiveRayEvenExtension.comp rayChart.toLinearIsometry
+
+/-- Inverse half-density in the actual quotient coordinates. -/
+theorem rayChart_symm_ae (f : Lp ℂ 2 ray) :
+    (rayChart.symm f : J → ℂ) =ᵐ[ν] fun g ↦ (Real.sqrt rad(g) : ℂ) * f rad(g) := by
+  let u := halfDensity.symm f
+  have hν : ae ν ≤ ae ν₀ := by rw [zero_measure]
+  have hu : (rayChart.symm f : J → ℂ) =ᵐ[ν] u ∘ normEquiv := hν (haarAmbient_apply u)
+  exact hu.trans (norm_preserving.quasiMeasurePreserving.ae (halfDensity_symm_apply_ae f))
 
 private def signs (f : 𝓢(ℝ, ℂ)) : 𝓢(ℝ, ℂ) :=
   f + SchwartzMap.compCLMOfContinuousLinearEquiv ℂ (LinearIsometryEquiv.neg ℝ (E := ℝ)) f
@@ -82,15 +91,12 @@ private def actualTest (f : 𝓢(ℝ, ℂ)) : W := rayChart.symm (rayTest f)
 
 private theorem actualTest_ae (f : 𝓢(ℝ, ℂ)) :
     (actualTest f : J → ℂ) =ᵐ[ν] fun g ↦ profile f rad(g) := by
-  let u := halfDensity.symm (rayTest f)
-  have hν : ae ν ≤ ae ν₀ := by rw [zero_measure]
-  have hu : (actualTest f : J → ℂ) =ᵐ[ν] u ∘ normEquiv := hν (haarAmbient_apply u)
   have hr := rad_ae (P := fun r ↦ rayTest f r = signs f r) (rayTest_ae f)
-  have hh : ∀ᵐ t ∂positiveRealHaar, u t = profile f (t.val : ℝ) := by
-    filter_upwards [halfDensity_symm_apply_ae (rayTest f), hr] with t ht hs
-    change halfDensity.symm (rayTest f) t = _
-    rw [ht, hs, signs_apply, profile, ← Real.sqrt_eq_rpow]
-  exact hu.trans (norm_preserving.quasiMeasurePreserving.ae hh)
+  filter_upwards [rayChart_symm_ae (rayTest f), norm_preserving.quasiMeasurePreserving.ae hr]
+    with g hg hreal
+  change rayChart.symm (rayTest f) g = _
+  change rayTest f rad(g) = signs f rad(g) at hreal
+  rw [hg, hreal, signs_apply, profile, ← Real.sqrt_eq_rpow]
 
 private theorem embedding_actualTest (f : 𝓢(ℝ, ℂ)) :
     embedding (actualTest f) = k • (signs f).toLp 2 volume := by

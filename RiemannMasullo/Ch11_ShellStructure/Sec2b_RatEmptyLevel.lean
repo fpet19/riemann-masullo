@@ -41,6 +41,8 @@ def normHomeomorph : J ≃ₜ ℝ≥0ˣ := by
 
 abbrev normEquiv := normHomeomorph.toMeasurableEquiv
 
+theorem normEquiv_apply (g : J) : normEquiv g = N g := by rfl
+
 theorem norm_preserving : MeasurePreserving normEquiv ν positiveRealHaar :=
   ⟨normEquiv.measurable, RatEmptyNormHaar.map_norm⟩
 
